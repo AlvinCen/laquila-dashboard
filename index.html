@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Laquila Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+      /* SweetAlert2 Theming */
+      .swal2-popup {
+          border-radius: 12px !important; /* same as 'xl' */
+          font-family: sans-serif;
+      }
+      .swal2-title {
+          color: hsl(222.2 84% 4.9%); /* foreground */
+      }
+      .swal2-html-container {
+          color: hsl(215.4 16.3% 46.9%); /* muted-foreground */
+      }
+      .swal2-confirm {
+          background-color: hsl(0 84.2% 60.2%) !important; /* destructive */
+          border-radius: 0.375rem !important;
+      }
+      .swal2-cancel {
+          background-color: hsl(210 40% 98%) !important; /* secondary */
+          color: hsl(222.2 47.4% 11.2%) !important;
+          border: 1px solid hsl(214.3 31.8% 91.4%) !important; /* border */
+          border-radius: 0.375rem !important;
+      }
+      .swal2-styled:focus {
+          box-shadow: 0 0 0 2px hsl(0 0% 100%), 0 0 0 4px hsl(221 83% 53%) !important; /* ring */
+      }
+    </style>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              border: 'hsl(214.3 31.8% 91.4%)',
+              input: 'hsl(214.3 31.8% 91.4%)',
+              ring: 'hsl(221 83% 53%)',
+              background: 'hsl(0 0% 100%)',
+              foreground: 'hsl(222.2 84% 4.9%)',
+              primary: {
+                DEFAULT: 'hsl(221 83% 53%)',
+                foreground: 'hsl(210 40% 98%)',
+              },
+              secondary: {
+                DEFAULT: 'hsl(210 40% 98%)',
+                foreground: 'hsl(222.2 47.4% 11.2%)',
+              },
+              destructive: {
+                DEFAULT: 'hsl(0 84.2% 60.2%)',
+                foreground: 'hsl(210 40% 98%)',
+              },
+              muted: {
+                DEFAULT: 'hsl(210 40% 96.1%)',
+                foreground: 'hsl(215.4 16.3% 46.9%)',
+              },
+              accent: {
+                DEFAULT: 'hsl(210 40% 96.1%)',
+                foreground: 'hsl(222.2 47.4% 11.2%)',
+              },
+            },
+            borderRadius: {
+              'xl': '12px',
+            }
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "docx": "https://aistudiocdn.com/docx@^9.5.1",
+    "path": "https://aistudiocdn.com/path@^0.12.7",
+    "nanoid": "https://aistudiocdn.com/nanoid@^5.1.6",
+    "util": "https://aistudiocdn.com/util@^0.12.5",
+    "child_process": "https://aistudiocdn.com/child_process@^1.0.2",
+    "dayjs/": "https://aistudiocdn.com/dayjs@^1.11.18/",
+    "dayjs": "https://aistudiocdn.com/dayjs@^1.11.18",
+    "zod": "https://aistudiocdn.com/zod@^4.1.12",
+    "fs": "https://aistudiocdn.com/fs@^0.0.1-security",
+    "better-sqlite3": "https://aistudiocdn.com/better-sqlite3@^12.4.1",
+    "fastify": "https://aistudiocdn.com/fastify@^5.6.1",
+    "@fastify/cors": "https://aistudiocdn.com/@fastify/cors@^11.1.0",
+    "@fastify/rate-limit": "https://aistudiocdn.com/@fastify/rate-limit@^10.3.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-secondary text-foreground">
+    <div id="root"></div>
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.js"></script>
+    <script src="https://unpkg.com/classnames@2.5.1/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/id.js"></script>
+    <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
