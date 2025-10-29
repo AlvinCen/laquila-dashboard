@@ -1,11 +1,11 @@
 import {
-    Product, ProductInput,
-    Wallet, WalletInput,
-    FinanceCategory, FinanceCategoryInput,
-    SalesOrder, SalesOrderInput,
-    CashFlowEntry, CashFlowEntryInput,
-    User, UserInput,
-    Platform
+  Product, ProductInput,
+  Wallet, WalletInput,
+  FinanceCategory, FinanceCategoryInput,
+  SalesOrder, SalesOrderInput,
+  CashFlowEntry, CashFlowEntryInput,
+  User, UserInput,
+  Platform
 } from '../types';
 
 // Safely access Vite environment variables with optional chaining.
@@ -14,45 +14,45 @@ import {
 const BASE_URL = (import.meta as any)?.env?.VITE_API_URL || 'http://localhost:4000/api';
 
 const handleResponse = async (response: Response) => {
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
-        return Promise.reject(errorData);
-    }
-    if (response.status === 204 || response.headers.get('Content-Length') === '0') {
-        return {}; // Handle No Content responses gracefully
-    }
-    return response.json();
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
+    return Promise.reject(errorData);
+  }
+  if (response.status === 204 || response.headers.get('Content-Length') === '0') {
+    return {}; // Handle No Content responses gracefully
+  }
+  return response.json();
 };
 
 const api = {
-    get: (path: string) => fetch(`${BASE_URL}${path}`, { credentials: 'include' }).then(handleResponse),
-    post: (path: string, body: any) => fetch(`${BASE_URL}${path}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body),
-    }).then(handleResponse),
-    put: (path: string, body: any) => fetch(`${BASE_URL}${path}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body),
-    }).then(handleResponse),
-    delete: (path: string) => fetch(`${BASE_URL}${path}`, {
-        method: 'DELETE',
-        credentials: 'include',
-    }).then(handleResponse),
+  get: (path: string) => fetch(`${BASE_URL}${path}`, { credentials: 'include' }).then(handleResponse),
+  post: (path: string, body: any) => fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  }).then(handleResponse),
+  put: (path: string, body: any) => fetch(`${BASE_URL}${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  }).then(handleResponse),
+  delete: (path: string) => fetch(`${BASE_URL}${path}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  }).then(handleResponse),
 };
 
 // === Normalizers & Adapters ===
 
 // Parse "harga" dari berbagai format: "20000", "20.000", "20,000", "Rp 20.000,50"
 const toNumber = (v: any): number => {
-    if (typeof v === 'number') return v;
-    if (v == null) return 0;
-    const s = String(v).replace(/[^\d.,-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
-    const n = Number.parseFloat(s);
-    return Number.isFinite(n) ? n : 0;
+  if (typeof v === 'number') return v;
+  if (v == null) return 0;
+  const s = String(v).replace(/[^\d.,-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
+  const n = Number.parseFloat(s);
+  return Number.isFinite(n) ? n : 0;
 };
 
 
@@ -86,10 +86,10 @@ const normalizeProduct = (r: any) => {
   };
 };
 const toServerProductBody = (p: any) => ({
-  sku:       p.sku ?? p.code ?? p.kode ?? p.kode_produk ?? p.kodeProduk ?? '',
-  name:      p.name ?? p.nama ?? p.nama_produk ?? p.namaProduk ?? '',
+  sku: p.sku ?? p.code ?? p.kode ?? p.kode_produk ?? p.kodeProduk ?? '',
+  name: p.name ?? p.nama ?? p.nama_produk ?? p.namaProduk ?? '',
   basePrice: toNumber(p.basePrice ?? p.harga_dasar ?? p.hargaDasar ?? p.price),
-  hppYear:   Number(p.hppYear ?? p.tahunHpp ?? p.tahun_hpp ?? new Date().getFullYear()),
+  hppYear: Number(p.hppYear ?? p.tahunHpp ?? p.tahun_hpp ?? new Date().getFullYear()),
 });
 
 
@@ -97,13 +97,13 @@ const toServerProductBody = (p: any) => ({
 /* ===================== WALLET ===================== */
 // Sama: kembalikan field inti + alias umum (number/nomor)
 // FE -> SERVER (POST/PUT)
-const toServerWallet = (w:any) => ({
+const toServerWallet = (w: any) => ({
   name: w?.name ?? w?.nama ?? '',
   number: String(w?.number ?? w?.nomor ?? ''),
   balance: Number(w?.balance ?? w?.saldo ?? 0),
 });
 
-const fromServerWallet = (r:any): Wallet => ({
+const fromServerWallet = (r: any): Wallet => ({
   id: String(r?.id ?? r?.wallet_id ?? r?.uuid ?? ''),
   name: r?.name ?? r?.nama ?? '',
   number: String(r?.number ?? r?.nomor ?? ''),
@@ -112,11 +112,11 @@ const fromServerWallet = (r:any): Wallet => ({
 
 /* ===================== FINANCE CATEGORY ===================== */
 // FE -> SERVER
-const toServerFinCat = (x:any) => ({
+const toServerFinCat = (x: any) => ({
   name: x?.name ?? x?.nama ?? '',
   type: (x?.type ?? x?.jenis ?? x?.tipe ?? 'expense'),
 });
-const fromServerFinCat = (r:any): FinanceCategory => ({
+const fromServerFinCat = (r: any): FinanceCategory => ({
   id: String(r?.id ?? r?.category_id ?? r?.uuid ?? ''),   // <-- JANGAN kosong
   name: r?.name ?? r?.nama ?? '',
   type: (r?.type ?? r?.jenis ?? 'expense'),
@@ -146,22 +146,22 @@ export const updateProduct = async (id: string, payload: any) => {
 
 
 export const deleteProduct = (id: string): Promise<{ success: boolean }> =>
-    api.delete(`/products/${id}`);
+  api.delete(`/products/${id}`);
 
 // --- WALLET APIS ---
 export async function fetchWallets(): Promise<Wallet[]> {
   const res = await api.get('/wallets');
   return (Array.isArray(res) ? res : []).map(fromServerWallet);
 }
-export async function addWallet(input:any): Promise<Wallet> {
+export async function addWallet(input: any): Promise<Wallet> {
   const res = await api.post('/wallets', toServerWallet(input));
   return fromServerWallet(res);
 }
-export async function updateWallet(id:string, input:any): Promise<Wallet> {
+export async function updateWallet(id: string, input: any): Promise<Wallet> {
   const res = await api.put(`/wallets/${id}`, toServerWallet(input));
   return fromServerWallet(res);
 }
-export async function deleteWallet(id:string): Promise<void> {
+export async function deleteWallet(id: string): Promise<void> {
   await api.delete(`/wallets/${id}`);
 }
 
@@ -171,64 +171,71 @@ export async function fetchFinanceCategories(): Promise<FinanceCategory[]> {
   return (Array.isArray(res) ? res : []).map(fromServerFinCat);
 }
 
-export async function addFinanceCategory(input:any): Promise<FinanceCategory> {
+export async function addFinanceCategory(input: any): Promise<FinanceCategory> {
   const res = await api.post('/finance-categories', toServerFinCat(input));
   return fromServerFinCat(res);
 }
 
-export async function updateFinanceCategory(id:string, input:any): Promise<FinanceCategory> {
+export async function updateFinanceCategory(id: string, input: any): Promise<FinanceCategory> {
   const res = await api.put(`/finance-categories/${id}`, toServerFinCat(input));
   return fromServerFinCat(res);
 }
 
-export async function deleteFinanceCategory(id:string): Promise<void> {
+export async function deleteFinanceCategory(id: string): Promise<void> {
   await api.delete(`/finance-categories/${id}`);
 }
 
 // --- SALES ORDER APIS ---
 export const getNextInvoiceNumber = (): Promise<{ invoiceNumber: string }> => api.get('/orders/next-invoice');
 export async function fetchSalesOrders(params?: {
-  status?: 'Confirmed'|'Cancelled'
+  status?: 'Confirmed' | 'Cancelled'
   startDate?: string
   endDate?: string
   q?: string
 }): Promise<SalesOrder[]> {
-  const qs = new URLSearchParams()
-  if (params?.status) qs.set('status', params.status)
-  if (params?.startDate) qs.set('startDate', params.startDate)
-  if (params?.endDate) qs.set('endDate', params.endDate)
-  if (params?.q) qs.set('q', params.q)
-  const res = await fetch(`/orders?${qs.toString()}`)
-  if (!res.ok) throw new Error('Gagal memuat data sales order.')
-  return res.json()
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set('status', params.status);
+  if (params?.startDate) qs.set('startDate', params.startDate);
+  if (params?.endDate) qs.set('endDate', params.endDate);
+  if (params?.q) qs.set('q', params.q);
+
+  const res = await fetch(`${BASE_URL}/orders?${qs.toString()}`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Gagal memuat data sales order.');
+  return res.json();
 }
 
 export async function saveSalesOrder(payload: SalesOrderInput) {
-  const isEdit = Boolean(payload.id)
-  const res = await fetch(`/orders${isEdit ? `/${payload.id}` : ''}`, {
+  const isEdit = Boolean((payload as any)?.id);
+  const url = `${BASE_URL}/orders${isEdit ? `/${(payload as any).id}` : ''}`;
+  const res = await fetch(url, {
     method: isEdit ? 'PUT' : 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(payload),
-  })
-  if (!res.ok) throw new Error(isEdit ? 'UPDATE_ORDER_FAILED' : 'CREATE_ORDER_FAILED')
-  return res.json()
+  });
+  if (!res.ok) throw new Error(isEdit ? 'UPDATE_ORDER_FAILED' : 'CREATE_ORDER_FAILED');
+  return res.json();
 }
 
 export async function cancelSalesOrder(id: string) {
-  const res = await fetch(`/orders/${id}/cancel`, { method: 'POST' })
-  if (!res.ok) throw new Error('CANCEL_ORDER_FAILED')
-  return res.json()
+  const res = await fetch(`${BASE_URL}/orders/${id}/cancel`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('CANCEL_ORDER_FAILED');
+  return res.json();
 }
-
 // --- FINANCE APIS ---
 export const recordSettlement = async (
-    salesOrderId: string,
-    amount: number,
-    walletId: string,
-    categoryId: string,
-    tanggal: string
+  salesOrderId: string,
+  amount: number,
+  walletId: string,
+  categoryId: string,
+  tanggal: string
 ): Promise<{ success: boolean; message: string; updatedOrder: SalesOrder | null }> => {
-    return api.post(`/settlements`, { salesOrderId, amount, walletId, categoryId, tanggal });
+  return api.post(`/settlements`, { salesOrderId, amount, walletId, categoryId, tanggal });
 };
 
 export const fetchCashFlowEntries = (): Promise<CashFlowEntry[]> => api.get('/cashflow');
@@ -238,8 +245,8 @@ export const deleteCashFlowEntry = (id: string): Promise<{ success: boolean }> =
 
 // --- ANALYTICS APIS ---
 export const fetchOrderAnalytics = (params: { marketplace: string; granularity: 'daily' | 'monthly' }) => {
-    const query = new URLSearchParams(params as any).toString();
-    return api.get(`/analytics/orders?${query}`);
+  const query = new URLSearchParams(params as any).toString();
+  return api.get(`/analytics/orders?${query}`);
 };
 
 // --- USER & AUTH APIS ---
@@ -249,23 +256,23 @@ export const logout = (): Promise<{ ok: boolean }> => api.post('/auth/logout', {
 
 export const fetchUsers = (): Promise<User[]> => api.get('/users');
 export const saveUser = (userInput: UserInput): Promise<User> => {
-    if (userInput.id) {
-        return api.put(`/users/${userInput.id}`, userInput);
-    }
-    return api.post('/users', userInput);
+  if (userInput.id) {
+    return api.put(`/users/${userInput.id}`, userInput);
+  }
+  return api.post('/users', userInput);
 };
 export const deleteUser = (id: string): Promise<{ success: boolean }> => api.delete(`/users/${id}`);
 
 // FIX: Added mock implementations for missing legacy API functions to resolve import errors.
 // --- LEGACY/OTHER APIS ---
 export const saveSalesInvoice = async (invoice: any): Promise<{ success: boolean, message: string }> => {
-    console.warn("saveSalesInvoice is a mock function and does not persist data.");
-    return Promise.resolve({ success: true, message: "Invoice saved successfully (mock)." });
+  console.warn("saveSalesInvoice is a mock function and does not persist data.");
+  return Promise.resolve({ success: true, message: "Invoice saved successfully (mock)." });
 };
 
 export const deleteSalesInvoice = async (id: string): Promise<{ success: boolean }> => {
-    console.warn("deleteSalesInvoice is a mock function and does not persist data.");
-    return Promise.resolve({ success: true });
+  console.warn("deleteSalesInvoice is a mock function and does not persist data.");
+  return Promise.resolve({ success: true });
 };
 
 export const addPlatform = async (platform: any): Promise<any> => Promise.resolve({ ...platform, id: `new_${Date.now()}` });
@@ -285,25 +292,25 @@ export const deletePaymentMethod = async (id: string): Promise<{ success: boolea
 // These were for components that are no longer central but might be re-used.
 // Mapping them to new backend sources if available.
 export const fetchCustomers = async (query?: string): Promise<any[]> => {
-    // This feature is not backed by the new schema, returning empty.
-    return Promise.resolve([]);
+  // This feature is not backed by the new schema, returning empty.
+  return Promise.resolve([]);
 };
 export const fetchPlatforms = (): Promise<Platform[]> => {
-    // Mocking this as it's static and not in the DB schema provided by user
-    const mockPlatforms: Platform[] = [
-        { id: 'PLT-001', name: 'Shopee' },
-        { id: 'PLT-002', name: 'Tokopedia' },
-        { id: 'PLT-003', name: 'TikTok Shop' },
-        { id: 'PLT-004', name: 'WhatsApp' },
-        { id: 'PLT-005', name: 'Lainnya' },
-    ];
-    return Promise.resolve(mockPlatforms);
+  // Mocking this as it's static and not in the DB schema provided by user
+  const mockPlatforms: Platform[] = [
+    { id: 'PLT-001', name: 'Shopee' },
+    { id: 'PLT-002', name: 'Tokopedia' },
+    { id: 'PLT-003', name: 'TikTok Shop' },
+    { id: 'PLT-004', name: 'WhatsApp' },
+    { id: 'PLT-005', name: 'Lainnya' },
+  ];
+  return Promise.resolve(mockPlatforms);
 };
 export const fetchEkspedisi = async (): Promise<any[]> => {
-    // This feature is not backed by the new schema, returning empty.
-    return Promise.resolve([]);
+  // This feature is not backed by the new schema, returning empty.
+  return Promise.resolve([]);
 };
 export const fetchPaymentMethods = async (): Promise<any[]> => {
-    // This feature is not backed by the new schema, returning empty.
-    return Promise.resolve([]);
+  // This feature is not backed by the new schema, returning empty.
+  return Promise.resolve([]);
 };
