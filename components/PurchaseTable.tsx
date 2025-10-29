@@ -13,42 +13,42 @@ import { useToast } from '../contexts/ToastContext';
 declare var Swal: any;
 
 const CategoryList: React.FC<{
-    title: string;
-    categories: FinanceCategory[];
-    onEdit: (category: FinanceCategory) => void;
-    onDelete: (id: string) => void;
-    searchQuery: string;
+  title: string;
+  categories: FinanceCategory[];
+  onEdit: (category: FinanceCategory) => void;
+  onDelete: (id: string) => void;
+  searchQuery: string;
 }> = ({ title, categories, onEdit, onDelete, searchQuery }) => (
-    <div>
-        <h4 className="text-md font-semibold mb-2">{title}</h4>
-        <div className="border rounded-lg">
-            {categories.length > 0 ? (
-                 <ul className="divide-y">
-                    {categories.map(cat => (
-                        <li key={cat.id} className="flex justify-between items-center p-3 hover:bg-gray-50">
-                            <span className="text-sm">{cat.name}</span>
-                            <div className="flex space-x-1">
-                                <Button variant="ghost" size="sm" onClick={() => onEdit(cat)}>
-                                    <EditIcon className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={() => onDelete(cat.id)}>
-                                    <TrashIcon className="h-4 w-4 text-destructive" />
-                                </Button>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-            ) : (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                    {searchQuery ? 'Tidak ada kategori yang cocok.' : 'Tidak ada kategori di sini.'}
-                </div>
-            )}
+  <div>
+    <h4 className="text-md font-semibold mb-2">{title}</h4>
+    <div className="border rounded-lg">
+      {categories.length > 0 ? (
+        <ul className="divide-y">
+          {categories.map((cat, idx) => (
+            <li key={cat.id || `cat-${idx}`} className="flex justify-between items-center p-3 hover:bg-gray-50">
+              <span className="text-sm">{cat.name}</span>
+              <div className="flex space-x-1">
+                <Button variant="ghost" size="sm" onClick={() => onEdit(cat)}>
+                  <EditIcon className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => onDelete(cat.id)}>
+                  <TrashIcon className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="p-4 text-center text-sm text-muted-foreground">
+          {searchQuery ? 'Tidak ada kategori yang cocok.' : 'Tidak ada kategori di sini.'}
         </div>
+      )}
     </div>
+  </div>
 );
 
 interface FinanceCategoryTableProps {
-    searchQuery: string;
+  searchQuery: string;
 }
 
 const FinanceCategoryTable: React.FC<FinanceCategoryTableProps> = ({ searchQuery }) => {
@@ -64,15 +64,15 @@ const FinanceCategoryTable: React.FC<FinanceCategoryTableProps> = ({ searchQuery
   }, []);
 
   const { incomeCategories, expenseCategories } = useMemo(() => {
-      const lowercasedQuery = searchQuery.toLowerCase();
-      const filtered = searchQuery 
-        ? categories.filter(c => c.name.toLowerCase().includes(lowercasedQuery))
-        : categories;
+    const lowercasedQuery = searchQuery.toLowerCase();
+    const filtered = searchQuery
+      ? categories.filter(c => c.name.toLowerCase().includes(lowercasedQuery))
+      : categories;
 
-      return {
-          incomeCategories: filtered.filter(c => c.type === 'income'),
-          expenseCategories: filtered.filter(c => c.type === 'expense'),
-      };
+    return {
+      incomeCategories: filtered.filter(c => c.type === 'income'),
+      expenseCategories: filtered.filter(c => c.type === 'expense'),
+    };
   }, [categories, searchQuery]);
 
   const loadCategories = async () => {
@@ -130,7 +130,7 @@ const FinanceCategoryTable: React.FC<FinanceCategoryTableProps> = ({ searchQuery
     showToast(`Kategori berhasil ${editingCategory ? 'diperbarui' : 'ditambahkan'}.`, 'success');
     loadCategories();
   };
-  
+
   if (isLoading) return <div>Memuat data kategori...</div>;
 
   return (
@@ -143,22 +143,22 @@ const FinanceCategoryTable: React.FC<FinanceCategoryTableProps> = ({ searchQuery
         </Button>
       </div>
       {error && <p className="text-sm font-medium text-destructive mb-4">{error}</p>}
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <CategoryList 
-            title="Kategori Pemasukan"
-            categories={incomeCategories}
-            onEdit={handleEditClick}
-            onDelete={handleDeleteClick}
-            searchQuery={searchQuery}
-          />
-          <CategoryList 
-            title="Kategori Pengeluaran"
-            categories={expenseCategories}
-            onEdit={handleEditClick}
-            onDelete={handleDeleteClick}
-            searchQuery={searchQuery}
-          />
+        <CategoryList
+          title="Kategori Pemasukan"
+          categories={incomeCategories}
+          onEdit={handleEditClick}
+          onDelete={handleDeleteClick}
+          searchQuery={searchQuery}
+        />
+        <CategoryList
+          title="Kategori Pengeluaran"
+          categories={expenseCategories}
+          onEdit={handleEditClick}
+          onDelete={handleDeleteClick}
+          searchQuery={searchQuery}
+        />
       </div>
 
       {isModalOpen && (

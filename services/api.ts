@@ -49,121 +49,77 @@ const api = {
 // Parse "harga" dari berbagai format: "20000", "20.000", "20,000", "Rp 20.000,50"
 const toNumber = (v: any): number => {
     if (typeof v === 'number') return v;
-    if (v === null || v === undefined) return 0;
-    const s = String(v)
-        .replace(/[^\d.,-]/g, '')              // buang "Rp", spasi, dsb
-        .replace(/\.(?=\d{3}(\D|$))/g, '')     // buang titik ribuan (20.000 -> 20000)
-        .replace(',', '.');                    // koma desimal -> titik
+    if (v == null) return 0;
+    const s = String(v).replace(/[^\d.,-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
     const n = Number.parseFloat(s);
     return Number.isFinite(n) ? n : 0;
 };
 
-// ---- util ----
-type AnyObj = Record<string, any>;
 
 /* ===================== PRODUCT ===================== */
 // Kembalikan field inti sesuai tipe Product KAMU (sku/name/basePrice/createdAt?)
 // Lalu tambahkan semua alias (kodeProduk, kode_produk, namaProduk, harga_dasar, dll)
 // Supaya ProductTable apa pun tetap dapat nilai.
-const productFromAPI = (row: AnyObj): Product => {
-  const basePrice =
-    toNumber(row.basePrice ?? row.harga_dasar ?? row.base_price ?? row.price ?? row.harga ?? 0);
+// FE -> SERVER (POST/PUT) — backend butuh camelCase
 
+// ---- NORMALIZER PRODUK: bikin semua alias kunci ada ----
+const normalizeProduct = (r: any) => {
+  const id = String(r.id ?? r.product_id ?? r.uuid ?? '');
   const sku =
-    row.sku ?? row.code ?? row.kode ?? row.kode_produk ?? row.product_code ?? row.kodeProduk ?? '';
-
+    r.sku ?? r.code ?? r.kode ?? r.kode_produk ?? r.kodeProduk ?? '';
   const name =
-    row.name ?? row.nama ?? row.nama_produk ?? row.product_name ?? row.namaProduk ?? '';
+    r.name ?? r.nama ?? r.nama_produk ?? r.namaProduk ?? '';
+  const basePrice = toNumber(r.basePrice ?? r.harga_dasar ?? r.hargaDasar ?? r.base_price ?? r.price ?? 0);
+  const hppYear = r.hppYear ?? r.tahunHpp ?? r.tahun_hpp ?? null;
 
-  const hppYear = Number(
-    row.hppYear ?? row.tahun_hpp ?? row.hpp_year ?? row.tahunHpp ?? 0
-  );
-
-  const p: any = {
-    // field yang memang ada di tipe Product kamu
-    id: String(row.id ?? row.product_id ?? row.uuid ?? ''),
-    sku,
-    name,
-    basePrice,
-    createdAt: row.createdAt ?? row.created_at ?? new Date().toISOString(),
-
-    // alias supaya table apa pun tetap kebaca
-    code: sku,
-    kode: sku,
-    kode_produk: sku,
-    kodeProduk: sku,
-
-    nama: name,
-    nama_produk: name,
-    namaProduk: name,
-
-    hppYear,
-    tahunHpp: hppYear,
-
-    harga_dasar: basePrice,
-    hargaDasar: basePrice,
-    base_price: basePrice,
-    price: basePrice,
-  };
-
-  return p as Product;
-};
-
-const productToAPI = (input: Partial<Product> | AnyObj): AnyObj => {
-  const i: any = input;
-  const sku = i.sku ?? i.code ?? i.kode ?? i.kodeProduk ?? i.kode_produk;
-  const name = i.name ?? i.nama ?? i.namaProduk ?? i.nama_produk;
-  const hppYear = i.hppYear ?? i.tahunHpp;
-  const basePrice = toNumber(i.basePrice ?? i.hargaDasar ?? i.harga_dasar ?? i.price);
-
+  // kembalikan field utama + SEMUA alias yang biasa dipakai tabel
   return {
-    kode_produk: sku,
-    nama_produk: name,
-    tahun_hpp: hppYear,
-    harga_dasar: basePrice,
+    id,
+    // utama (camelCase)
+    sku, name, basePrice, hppYear,
+
+    // alias untuk kompatibilitas tabel lama
+    code: sku, kode: sku, kode_produk: sku, kodeProduk: sku,
+    nama: name, nama_produk: name, namaProduk: name,
+    price: basePrice, base_price: basePrice, harga_dasar: basePrice, hargaDasar: basePrice,
+    tahunHpp: hppYear, tahun_hpp: hppYear,
   };
 };
+const toServerProductBody = (p: any) => ({
+  sku:       p.sku ?? p.code ?? p.kode ?? p.kode_produk ?? p.kodeProduk ?? '',
+  name:      p.name ?? p.nama ?? p.nama_produk ?? p.namaProduk ?? '',
+  basePrice: toNumber(p.basePrice ?? p.harga_dasar ?? p.hargaDasar ?? p.price),
+  hppYear:   Number(p.hppYear ?? p.tahunHpp ?? p.tahun_hpp ?? new Date().getFullYear()),
+});
+
+
 
 /* ===================== WALLET ===================== */
 // Sama: kembalikan field inti + alias umum (number/nomor)
-const walletFromAPI = (row: AnyObj): Wallet => {
-  const num =
-    String(row.number ?? row.nomor ?? row.accountNumber ?? row.noRek ?? row.no_rekening ?? '');
+// FE -> SERVER (POST/PUT)
+const toServerWallet = (w:any) => ({
+  name: w?.name ?? w?.nama ?? '',
+  number: String(w?.number ?? w?.nomor ?? ''),
+  balance: Number(w?.balance ?? w?.saldo ?? 0),
+});
 
-  const w: any = {
-    id: String(row.id ?? row.wallet_id ?? ''),
-    name: row.name ?? row.nama ?? '',
-    number: num,
-    balance: toNumber(row.balance ?? row.saldo ?? 0),
-
-    // alias
-    nama: row.name ?? row.nama ?? '',
-    nomor: num,
-    saldo: toNumber(row.balance ?? row.saldo ?? 0),
-  };
-
-  return w as Wallet;
-};
-
-const walletToAPI = (input: Partial<Wallet> | AnyObj): AnyObj => {
-  const i: any = input;
-  const num = i.number ?? i.nomor ?? i.accountNumber ?? i.noRek;
-  return {
-    nama: i.name ?? i.nama,
-    nomor: String(num ?? ''),
-    saldo: toNumber(i.balance ?? i.saldo),
-  };
-};
+const fromServerWallet = (r:any): Wallet => ({
+  id: String(r?.id ?? r?.wallet_id ?? r?.uuid ?? ''),
+  name: r?.name ?? r?.nama ?? '',
+  number: String(r?.number ?? r?.nomor ?? ''),
+  balance: Number(r?.balance ?? r?.saldo ?? 0),
+});
 
 /* ===================== FINANCE CATEGORY ===================== */
-const financeCategoryFromAPI = (row: AnyObj): FinanceCategory => ({
-    id: String(row.id ?? ''),
-    name: row.name ?? row.nama ?? row.nama_kategori ?? '',
-    type: row.type ?? row.jenis ?? 'expense',
+// FE -> SERVER
+const toServerFinCat = (x:any) => ({
+  name: x?.name ?? x?.nama ?? '',
+  type: (x?.type ?? x?.jenis ?? x?.tipe ?? 'expense'),
 });
-const financeCategoryToAPI = (input: Partial<FinanceCategoryInput> | Partial<FinanceCategory>): AnyObj => ({
-    nama_kategori: (input as any).name ?? '',
-    jenis: (input as any).type ?? 'expense',
+const fromServerFinCat = (r:any): FinanceCategory => ({
+  id: String(r?.id ?? r?.category_id ?? r?.uuid ?? ''),   // <-- JANGAN kosong
+  name: r?.name ?? r?.nama ?? '',
+  type: (r?.type ?? r?.jenis ?? 'expense'),
 });
 
 
@@ -173,55 +129,96 @@ export const clearMockData = (): Promise<{ success: boolean, message: string }> 
 
 
 // --- PRODUCT APIS ---
-export const fetchProducts = (): Promise<Product[]> =>
-    api.get('/products').then((rows: any[]) => rows.map(productFromAPI));
+export const fetchProducts = async () => {
+  const rows = await api.get('/products');
+  return (Array.isArray(rows) ? rows : []).map(normalizeProduct);
+};
 
-export const addProduct = (product: ProductInput): Promise<Product> =>
-    api.post('/products', productToAPI(product)).then(productFromAPI);
+export const addProduct = async (payload: any) => {
+  const res = await api.post('/products', toServerProductBody(payload));
+  return normalizeProduct(res);
+};
 
-export const updateProduct = (id: string, productUpdate: Partial<ProductInput>): Promise<Product> =>
-    api.put(`/products/${id}`, productToAPI(productUpdate)).then(productFromAPI);
+export const updateProduct = async (id: string, payload: any) => {
+  const res = await api.put(`/products/${id}`, toServerProductBody(payload));
+  return normalizeProduct(res);
+};
+
 
 export const deleteProduct = (id: string): Promise<{ success: boolean }> =>
     api.delete(`/products/${id}`);
 
 // --- WALLET APIS ---
-export const fetchWallets = (): Promise<Wallet[]> =>
-    api.get('/wallets').then((rows: any[]) => rows.map(walletFromAPI));
-
-export const addWallet = (wallet: WalletInput): Promise<Wallet> =>
-    api.post('/wallets', walletToAPI(wallet)).then(walletFromAPI);
-
-export const updateWallet = (id: string, walletUpdate: Partial<WalletInput>): Promise<Wallet> =>
-    api.put(`/wallets/${id}`, walletToAPI(walletUpdate)).then(walletFromAPI);
-
-export const deleteWallet = (id: string): Promise<{ success: boolean }> =>
-    api.delete(`/wallets/${id}`);
+export async function fetchWallets(): Promise<Wallet[]> {
+  const res = await api.get('/wallets');
+  return (Array.isArray(res) ? res : []).map(fromServerWallet);
+}
+export async function addWallet(input:any): Promise<Wallet> {
+  const res = await api.post('/wallets', toServerWallet(input));
+  return fromServerWallet(res);
+}
+export async function updateWallet(id:string, input:any): Promise<Wallet> {
+  const res = await api.put(`/wallets/${id}`, toServerWallet(input));
+  return fromServerWallet(res);
+}
+export async function deleteWallet(id:string): Promise<void> {
+  await api.delete(`/wallets/${id}`);
+}
 
 // --- FINANCE CATEGORY APIS ---
-export const fetchFinanceCategories = (): Promise<FinanceCategory[]> =>
-    api.get('/finance-categories').then((rows: any[]) => rows.map(financeCategoryFromAPI));
+export async function fetchFinanceCategories(): Promise<FinanceCategory[]> {
+  const res = await api.get('/finance-categories');
+  return (Array.isArray(res) ? res : []).map(fromServerFinCat);
+}
 
-export const addFinanceCategory = (category: FinanceCategoryInput): Promise<FinanceCategory> =>
-    api.post('/finance-categories', financeCategoryToAPI(category)).then(financeCategoryFromAPI);
+export async function addFinanceCategory(input:any): Promise<FinanceCategory> {
+  const res = await api.post('/finance-categories', toServerFinCat(input));
+  return fromServerFinCat(res);
+}
 
-export const updateFinanceCategory = (id: string, categoryUpdate: Partial<FinanceCategoryInput>): Promise<FinanceCategory> =>
-    api.put(`/finance-categories/${id}`, financeCategoryToAPI(categoryUpdate)).then(financeCategoryFromAPI);
+export async function updateFinanceCategory(id:string, input:any): Promise<FinanceCategory> {
+  const res = await api.put(`/finance-categories/${id}`, toServerFinCat(input));
+  return fromServerFinCat(res);
+}
 
-export const deleteFinanceCategory = (id: string): Promise<{ success: boolean }> =>
-    api.delete(`/finance-categories/${id}`);
-
+export async function deleteFinanceCategory(id:string): Promise<void> {
+  await api.delete(`/finance-categories/${id}`);
+}
 
 // --- SALES ORDER APIS ---
 export const getNextInvoiceNumber = (): Promise<{ invoiceNumber: string }> => api.get('/orders/next-invoice');
-export const fetchSalesOrders = (): Promise<SalesOrder[]> => api.get('/orders');
-export const saveSalesOrder = (order: SalesOrderInput): Promise<SalesOrder> => {
-    if (order.id) {
-        return api.put(`/orders/${order.id}`, order);
-    }
-    return api.post('/orders', order);
-};
-export const cancelSalesOrder = (id: string): Promise<{ success: boolean, message: string }> => api.post(`/orders/${id}/cancel`, {});
+export async function fetchSalesOrders(params?: {
+  status?: 'Confirmed'|'Cancelled'
+  startDate?: string
+  endDate?: string
+  q?: string
+}): Promise<SalesOrder[]> {
+  const qs = new URLSearchParams()
+  if (params?.status) qs.set('status', params.status)
+  if (params?.startDate) qs.set('startDate', params.startDate)
+  if (params?.endDate) qs.set('endDate', params.endDate)
+  if (params?.q) qs.set('q', params.q)
+  const res = await fetch(`/orders?${qs.toString()}`)
+  if (!res.ok) throw new Error('Gagal memuat data sales order.')
+  return res.json()
+}
+
+export async function saveSalesOrder(payload: SalesOrderInput) {
+  const isEdit = Boolean(payload.id)
+  const res = await fetch(`/orders${isEdit ? `/${payload.id}` : ''}`, {
+    method: isEdit ? 'PUT' : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error(isEdit ? 'UPDATE_ORDER_FAILED' : 'CREATE_ORDER_FAILED')
+  return res.json()
+}
+
+export async function cancelSalesOrder(id: string) {
+  const res = await fetch(`/orders/${id}/cancel`, { method: 'POST' })
+  if (!res.ok) throw new Error('CANCEL_ORDER_FAILED')
+  return res.json()
+}
 
 // --- FINANCE APIS ---
 export const recordSettlement = async (

@@ -22,6 +22,8 @@ export type ProductInput = Omit<Product, 'id' | 'createdAt'>;
 export interface Wallet {
   id: string;
   name: string;
+  number: string,
+  balance: number,
 }
 export type WalletInput = Omit<Wallet, 'id'>;
 

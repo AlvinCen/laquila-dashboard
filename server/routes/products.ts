@@ -8,7 +8,16 @@ const ProductSchema = z.object({
   name: z.string().min(1),
   sku: z.string().optional().nullable(),
   basePrice: z.number().int().positive(),
+  hppYear: z.number().int().min(1900).max(2100).optional().nullable(),
   // kelengkapanImage and kelengkapanMime are not in the schema, so we don't validate them here
+});
+
+// body untuk UPDATE boleh partial
+const ProductUpdate = z.object({
+  sku: z.string().min(1).optional(),
+  name: z.string().min(1).optional(),
+  basePrice: z.number().optional(),
+  hppYear: z.number().int().min(1900).max(2100).nullable().optional(),
 });
 
 export default async function productRoutes(server: FastifyInstance) {
@@ -26,40 +35,47 @@ export default async function productRoutes(server: FastifyInstance) {
     if (!result.success) {
       return reply.status(400).send(result.error);
     }
-    const { name, sku, basePrice } = result.data;
+    const { name, sku, basePrice, hppYear } = result.data;
 
     const newProduct = {
       id: `prod_${nanoid()}`,
       name,
       sku,
       basePrice,
+      hppYear,
       createdAt: getWibISOString(),
     };
 
-    const stmt = db.prepare('INSERT INTO products (id, name, sku, basePrice, createdAt) VALUES (?, ?, ?, ?, ?)');
-    stmt.run(newProduct.id, newProduct.name, newProduct.sku, newProduct.basePrice, newProduct.createdAt);
+    const stmt = db.prepare('INSERT INTO products (id, name, sku, basePrice, hppYear, createdAt) VALUES (?, ?, ?, ?, ?, ?)');
+    stmt.run(newProduct.id, newProduct.name, newProduct.sku, newProduct.basePrice, newProduct.hppYear, newProduct.createdAt);
 
     return reply.status(201).send(newProduct);
   });
 
-   // UPDATE a product
-   server.put('/:id', async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const result = ProductSchema.safeParse(request.body);
-    if (!result.success) {
-      return reply.status(400).send(result.error);
-    }
-    const { name, sku, basePrice } = result.data;
-    
-    const stmt = db.prepare('UPDATE products SET name = ?, sku = ?, basePrice = ? WHERE id = ?');
-    const info = stmt.run(name, sku, basePrice, id);
+  // UPDATE a product
+  server.put('/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const body = ProductUpdate.parse(req.body); // validasi camelCase
 
-    if (info.changes === 0) {
-      return reply.status(404).send({ message: 'Product not found' });
-    }
-    
-    const updatedProduct = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
-    return updatedProduct;
+    // bangun SET clause tanpa trailing comma
+    const set: string[] = [];
+    const vals: any[] = [];
+
+    if (body.sku !== undefined) { set.push('sku = ?'); vals.push(body.sku); }
+    if (body.name !== undefined) { set.push('name = ?'); vals.push(body.name); }
+    if (body.basePrice !== undefined) { set.push('basePrice = ?'); vals.push(body.basePrice); }
+    if (body.hppYear !== undefined) { set.push('hppYear = ?'); vals.push(body.hppYear); }
+
+    if (set.length === 0) return reply.code(400).send({ error: 'No fields to update' });
+
+    const sql = `UPDATE products SET ${set.join(', ')} WHERE id = ?`;
+    vals.push(id);
+
+    // better-sqlite3
+    db.prepare(sql).run(vals);
+
+    const row = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+    return reply.send(row); // response tetap camelCase
   });
 
   // DELETE a product
@@ -69,7 +85,7 @@ export default async function productRoutes(server: FastifyInstance) {
     const info = stmt.run(id);
 
     if (info.changes === 0) {
-        return reply.status(404).send({ message: 'Product not found' });
+      return reply.status(404).send({ message: 'Product not found' });
     }
     return { success: true };
   });
