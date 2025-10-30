@@ -7,21 +7,30 @@ import { Select } from './ui/Select';
 import { toDateTimeLocal } from '../utils/formatters';
 
 interface CashFlowEntryFormProps {
-  entryToEdit?: CashFlowEntry | null; // For editing
-  createType?: 'income' | 'expense' | 'transfer' | null; // For creating
-  wallets: Wallet[];
-  financeCategories: FinanceCategory[];
-  onSave: (data: CashFlowEntryInput) => Promise<void>;
-  onCancel: () => void;
+    entryToEdit?: CashFlowEntry | null; // For editing
+    createType?: 'income' | 'expense' | 'transfer' | null; // For creating
+    wallets: Wallet[];
+    financeCategories: FinanceCategory[];
+    onSave: (data: CashFlowEntryInput) => Promise<void>;
+    onCancel: () => void;
 }
 
-const CashFlowEntryForm: React.FC<CashFlowEntryFormProps> = ({ 
-    entryToEdit, 
-    createType, 
-    wallets, 
-    financeCategories, 
-    onSave, 
-    onCancel 
+const toDateInput = (v?: string) => {
+    if (!v) return '';
+    const d = new Date(v);
+    const tz = d.getTimezoneOffset();
+    const local = new Date(d.getTime() - tz * 60000);
+    return local.toISOString().slice(0, 10);
+};
+
+
+const CashFlowEntryForm: React.FC<CashFlowEntryFormProps> = ({
+    entryToEdit,
+    createType,
+    wallets,
+    financeCategories,
+    onSave,
+    onCancel
 }) => {
     const [formData, setFormData] = useState<Partial<CashFlowEntryInput>>({});
     const [isSaving, setIsSaving] = useState(false);
@@ -44,12 +53,12 @@ const CashFlowEntryForm: React.FC<CashFlowEntryFormProps> = ({
             }
 
             if (createType) {
-                 const defaultWalletId = wallets[0]?.id || '';
-                 const defaultToWalletId = wallets.length > 1 ? wallets[1].id : defaultWalletId;
-                 const defaultIncomeCat = incomeCategories[0]?.id || '';
-                 const defaultExpenseCat = expenseCategories[0]?.id || '';
+                const defaultWalletId = wallets[0]?.id || '';
+                const defaultToWalletId = wallets.length > 1 ? wallets[1].id : defaultWalletId;
+                const defaultIncomeCat = incomeCategories[0]?.id || '';
+                const defaultExpenseCat = expenseCategories[0]?.id || '';
 
-                 return {
+                return {
                     type: createType,
                     jumlah: 0,
                     tanggal: toDateTimeLocal(new Date().toISOString()),
@@ -63,13 +72,13 @@ const CashFlowEntryForm: React.FC<CashFlowEntryFormProps> = ({
         };
         setFormData(getInitialState());
     }, [entryToEdit, createType, wallets, financeCategories, incomeCategories, expenseCategories]);
-    
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         const parsedValue = name === 'jumlah' ? parseFloat(value) || 0 : value;
         setFormData(prev => ({ ...prev, [name]: parsedValue }));
     };
-    
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
@@ -79,11 +88,11 @@ const CashFlowEntryForm: React.FC<CashFlowEntryFormProps> = ({
             return;
         }
         if (formData.type !== 'transfer' && !formData.kategori) {
-             setError('Kategori harus dipilih.');
+            setError('Kategori harus dipilih.');
             return;
         }
         if (formData.type === 'transfer' && formData.walletId === formData.toWalletId) {
-             setError('Wallet sumber dan tujuan tidak boleh sama.');
+            setError('Wallet sumber dan tujuan tidak boleh sama.');
             return;
         }
 
@@ -95,7 +104,7 @@ const CashFlowEntryForm: React.FC<CashFlowEntryFormProps> = ({
             setIsSaving(false); // only stop saving on error, success will unmount
         }
     };
-    
+
     const formType = entryToEdit?.type || createType;
 
     const renderIncomeExpenseFields = () => (
@@ -104,7 +113,7 @@ const CashFlowEntryForm: React.FC<CashFlowEntryFormProps> = ({
                 <Label htmlFor="kategori">Kategori</Label>
                 <Select id="kategori" name="kategori" value={formData.kategori || ''} onChange={handleChange} required>
                     <option value="" disabled>Pilih Kategori...</option>
-                    {formType === 'income' ? 
+                    {formType === 'income' ?
                         incomeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>) :
                         expenseCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)
                     }
@@ -113,7 +122,7 @@ const CashFlowEntryForm: React.FC<CashFlowEntryFormProps> = ({
             <div className="grid gap-1.5">
                 <Label htmlFor="walletId">Wallet</Label>
                 <Select id="walletId" name="walletId" value={formData.walletId || ''} onChange={handleChange} required>
-                     <option value="" disabled>Pilih Wallet...</option>
+                    <option value="" disabled>Pilih Wallet...</option>
                     {wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </Select>
             </div>
@@ -122,14 +131,14 @@ const CashFlowEntryForm: React.FC<CashFlowEntryFormProps> = ({
 
     const renderTransferFields = () => (
         <>
-             <div className="grid gap-1.5">
+            <div className="grid gap-1.5">
                 <Label htmlFor="walletId">Sumber Wallet</Label>
                 <Select id="walletId" name="walletId" value={formData.walletId || ''} onChange={handleChange} required>
                     <option value="" disabled>Pilih Wallet Sumber...</option>
                     {wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </Select>
             </div>
-             <div className="grid gap-1.5">
+            <div className="grid gap-1.5">
                 <Label htmlFor="toWalletId">Tujuan Wallet</Label>
                 <Select id="toWalletId" name="toWalletId" value={formData.toWalletId || ''} onChange={handleChange} required>
                     <option value="" disabled>Pilih Wallet Tujuan...</option>
@@ -150,7 +159,7 @@ const CashFlowEntryForm: React.FC<CashFlowEntryFormProps> = ({
 
             <div className="grid gap-1.5">
                 <Label htmlFor="tanggal">Tanggal Transaksi</Label>
-                <Input id="tanggal" name="tanggal" type="datetime-local" value={formData.tanggal || ''} onChange={handleChange} required />
+                <Input id="tanggal" name="tanggal" type="date" value={toDateInput(formData.tanggal) || ''} onChange={handleChange} required />
             </div>
             <div className="grid gap-1.5">
                 <Label htmlFor="deskripsi">Deskripsi (Opsional)</Label>
@@ -158,7 +167,7 @@ const CashFlowEntryForm: React.FC<CashFlowEntryFormProps> = ({
             </div>
 
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-            
+
             <div className="flex justify-end space-x-2 pt-4">
                 <Button type="button" variant="outline" onClick={onCancel}>Batal</Button>
                 <Button type="submit" disabled={isSaving}>
