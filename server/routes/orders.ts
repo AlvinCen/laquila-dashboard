@@ -327,8 +327,8 @@ export default async function ordersRoutes(app: FastifyInstance) {
         : db.prepare(`SELECT ${SELECT_ID}, * FROM ${Q(TABLE)} WHERE ${where}`).get(isNaN(rid) ? -1 : rid)
       ) as Row | undefined;
       if (!row) return rep.code(404).send({ error: 'NOT_FOUND' });
-      const pk = getPk(row);
-      const items = selectItems(pk);
+      const key = migrateEmptyParentIdAndChildren(row);
+      const items = selectItems(key);
       return rep.send({ ...mapRow(row), items });
 
     } catch (e: any) {
@@ -390,19 +390,25 @@ export default async function ordersRoutes(app: FastifyInstance) {
         }
       }
 
-      const orderPk = getPk(created);
+      // sesudah
+      const key = ensureOrderHasId(created);           // <- pastikan ID teks valid
+      const items = selectItems(key);
 
-      const items = selectItems(orderPk);
+      const payload: any = {
+        ...mapRow({ ...created, id: created.id ?? created.__rid }),
+        items,
+      };
 
-      // Kembalikan 200 agar FE tidak menandai error
-      return rep.send({ ...mapRow({ ...created, id: created.id ?? created.__rid }), items });
+      // orders kamu gak punya kolom total -> hitung untuk response saja
+      if (!C.total) payload.total = computeTotal(key) ?? 0;
+
+      return rep.send(payload);
 
     } catch (e: any) {
       return rep.code(500).send({ error: 'DB_ERROR', detail: e.message });
     }
   });
 
-  // UPDATE
   // UPDATE
   app.put('/:id', async (req, rep) => {
     try {
@@ -437,24 +443,30 @@ export default async function ordersRoutes(app: FastifyInstance) {
       }
 
       // --- Items ---
+      const itemsKeyPresent =
+        Object.prototype.hasOwnProperty.call(b, 'items') ||
+        Object.prototype.hasOwnProperty.call(b, 'orderItems') ||
+        Object.prototype.hasOwnProperty.call(b, 'detailItems') ||
+        Object.prototype.hasOwnProperty.call(b, 'detail');
+
       const bodyItems: any[] | undefined =
         Array.isArray(b.items) ? b.items :
           Array.isArray(b.orderItems) ? b.orderItems :
             Array.isArray(b.detailItems) ? b.detailItems :
               Array.isArray(b.detail) ? b.detail : undefined;
 
-      let keyUsedForChild: any = undefined;
+      let keyUsedForChild: string | undefined;
 
-      if (bodyItems) {
-        // Ambil row parent & pastikan punya 'id' (karena FK -> orders.id)
+      if (itemsKeyPresent && bodyItems && bodyItems.length > 0) {
+        // Ambil row parent & pakai orders.id (TEXT) untuk FK anak
         const parentRow = db.prepare(
           `SELECT rowid AS __rid, ${SELECT_ID.replace(' AS id', '')}, * 
-         FROM ${Q(TABLE)}
-         WHERE ${C.id ? `${Q(C.id)}=? OR rowid=?` : `rowid=?`}`
+     FROM ${Q(TABLE)}
+     WHERE ${C.id ? `${Q(C.id)}=? OR rowid=?` : `rowid=?`}`
         ).get(C.id ? [id, isNaN(rid) ? -1 : rid] : [isNaN(rid) ? -1 : rid]) as Row | undefined;
 
         if (parentRow) {
-          keyUsedForChild = ensureOrderHasId(parentRow); // selalu pakai orders.id (TEXT)
+          keyUsedForChild = migrateEmptyParentIdAndChildren(parentRow);
 
           const tx = db.transaction(() => {
             if (ITEMS_T) {
@@ -470,6 +482,8 @@ export default async function ordersRoutes(app: FastifyInstance) {
           tx();
         }
       }
+      // NOTE: jika itemsKeyPresent && bodyItems?.length === 0 → TIDAK ngapa2in (jaga yang lama)
+
 
       // Reload order & items dengan kunci yang SAMA seperti saat insert
       const after = db.prepare(
@@ -480,16 +494,19 @@ export default async function ordersRoutes(app: FastifyInstance) {
 
       if (!after) return rep.code(404).send({ error: 'NOT_FOUND' });
 
-      const items = selectItems(keyUsedForChild ?? getPk(after));
-      const payload = { ...mapRow({ ...after, id: after.id ?? after.__rid }), items };
+      // sesudah
+      const key = keyUsedForChild ?? migrateEmptyParentIdAndChildren(after);
+      const items = selectItems(key);
 
-      // Bila tabel orders memang tidak punya kolom total, hitung untuk response saja
-      if (!C.total) {
-        const t = computeTotal(keyUsedForChild ?? getPk(after));
-        (payload as any).total = Number(t ?? 0);
-      }
+      const payload: any = {
+        ...mapRow({ ...after, id: after.id ?? after.__rid }),
+        items,
+      };
+
+      if (!C.total) payload.total = computeTotal(key) ?? 0;
 
       return rep.send(payload);
+
     } catch (e: any) {
       return rep.code(500).send({ error: 'DB_ERROR', detail: e.message });
     }
