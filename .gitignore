@@ -22,5 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-data/laquila.db-shm*
-data/laquila.db-wal*
+
+# SQLite temp/WAL
+/data/*.db*
+*.db-shm
+*.db-wal
+*.db-journal
