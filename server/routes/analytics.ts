@@ -15,26 +15,29 @@ function dayWindow(dateStr: string) {
 }
 
 function hourlySeries(startIso: string, endIso: string) {
-  // total = Σ(basePrice × qty) per jam
   const rows = db.prepare(`
-    SELECT strftime('%H', datetime(o.createdAt)) AS h,
-           SUM(oi.basePrice * oi.qty) AS v
+    SELECT
+      -- bucket jam di WIB: UTC + 7
+      strftime('%H', datetime(o.createdAt, '+7 hours')) AS h,
+      SUM(oi.basePrice * oi.qty) AS v
     FROM orders o
     JOIN order_items oi ON oi.orderId = o.id
-    WHERE o.createdAt BETWEEN ? AND ?
+    -- batas waktu tetap di UTC (start/end kamu sudah dalam UTC dari dayjs.tz(...).toISOString())
+    WHERE datetime(o.createdAt) BETWEEN datetime(?) AND datetime(?)
     GROUP BY h
+    ORDER BY h
   `).all(startIso, endIso) as any[];
-
-  const map = new Map(rows.map(r => [r.h, Number(r.v || 0)]));
   return Array.from({ length: 24 }, (_, i) => {
     const h = String(i).padStart(2, '0');
-    return { t: h, v: Number(map.get(h) ?? 0) };
+    const found = rows.find(r => r.h === h);
+    return { t: h, v: Number(found?.v ?? 0) };
   });
 }
 
+
 export default async function analyticsRoutes(app: FastifyInstance) {
   // GET /api/analytics/orders?granularity=daily&date=YYYY-MM-DD&compare=true&compareDate=YYYY-MM-DD&marketplace=all
-  app.get('/api/analytics/orders', async (req) => {
+  app.get('/orders', async (req) => {
     const q = req.query as any;
     const granularity = q.granularity ?? 'daily';
     if (granularity !== 'daily') {

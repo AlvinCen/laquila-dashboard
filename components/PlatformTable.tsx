@@ -16,136 +16,177 @@ const SettlementForm: React.FC<{
     wallets: Wallet[];
     incomeCategories: FinanceCategory[];
     cashFlowEntries: CashFlowEntry[];
-    onSave: (settlementData: { amount: number; walletId: string; categoryId: string; tanggal: string; }) => Promise<void>;
+    onSave: (settlementData: { amount: number; walletId: string; categoryId: string; tanggal: string }) => Promise<void>;
     onCancel: () => void;
 }> = ({ order, wallets, incomeCategories, cashFlowEntries, onSave, onCancel }) => {
-    const sisaTagihan = order.total - (order.jumlahDilunasi || 0);
+    const sisaTagihan = Math.max(0, order.total - (order.jumlahDilunasi ?? 0));
     const [amount, setAmount] = useState(sisaTagihan);
     const [walletId, setWalletId] = useState('all');
-    const [categoryId, setCategoryId] = useState(incomeCategories[0]?.id || '');
+    const [categoryId, setCategoryId] = useState<string>(''); // ← mulai kosong, tunggu data masuk
     const [tanggal, setTanggal] = useState(() => toDateTimeLocal(new Date().toISOString()));
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState('');
     const { showToast } = useToast();
     const { filterWallets, canAccessWallet } = useAuth();
-    
+
+    // --- SET DEFAULT CATEGORY BEGITU LIST MASUK / BERUBAH ---
+    useEffect(() => {
+        if (!incomeCategories?.length) return;
+        if (!incomeCategories.some(c => c.id === categoryId)) {
+            setCategoryId(incomeCategories[0].id);
+        }
+    }, [incomeCategories, categoryId]);
+
+    // validasi helper
+    const isValidCategory = useMemo(
+        () => incomeCategories?.some(c => c.id === categoryId) ?? false,
+        [incomeCategories, categoryId]
+    );
+    const isAmountValid = amount > 0 && amount <= sisaTagihan;
+
     const accessibleWallets = filterWallets(wallets);
 
     const currentBalance = useMemo(() => {
         if (!cashFlowEntries) return 0;
-
         if (walletId === 'all') {
-             return cashFlowEntries.reduce((acc, entry) => {
+            return cashFlowEntries.reduce((acc, entry) => {
                 if (!canAccessWallet(entry.walletId) && (!entry.toWalletId || !canAccessWallet(entry.toWalletId))) return acc;
                 if (entry.type === 'income') return acc + entry.jumlah;
                 if (entry.type === 'expense') return acc - entry.jumlah;
                 return acc;
             }, 0);
         }
-
         return cashFlowEntries.reduce((acc, entry) => {
-            let balanceChange = 0;
+            let delta = 0;
             if (entry.walletId === walletId) {
-                if (entry.type === 'income') balanceChange += entry.jumlah;
-                if (entry.type === 'expense') balanceChange -= entry.jumlah;
-                if (entry.type === 'transfer') balanceChange -= entry.jumlah;
+                if (entry.type === 'income') delta += entry.jumlah;
+                if (entry.type === 'expense') delta -= entry.jumlah;
+                if (entry.type === 'transfer') delta -= entry.jumlah;
             }
-            if (entry.toWalletId === walletId && entry.type === 'transfer') {
-                balanceChange += entry.jumlah;
-            }
-            return acc + balanceChange;
+            if (entry.toWalletId === walletId && entry.type === 'transfer') delta += entry.jumlah;
+            return acc + delta;
         }, 0);
-
     }, [walletId, cashFlowEntries, canAccessWallet]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        if (amount <= 0) {
-            setError('Jumlah pelunasan harus lebih dari 0.');
+
+        if (!isAmountValid) {
+            setError('Jumlah pelunasan tidak valid (≤ 0 atau melebihi sisa).');
             return;
         }
         if (walletId === 'all' || !walletId) {
             setError('Silakan pilih wallet tujuan spesifik.');
             return;
         }
-        if (!categoryId) {
-            setError('Silakan pilih kategori penjualan.');
+        if (!isValidCategory) {
+            setError('Kategori penjualan tidak valid. Silakan pilih dari daftar.');
             return;
         }
-        
+
+        // ⬇️ validasi ekstra: categoryId harus valid & tipe income
+        const selectedCat = incomeCategories.find(c => c.id === categoryId);
+        if (!selectedCat) {
+            setError('Kategori penjualan tidak valid. Silakan pilih ulang.');
+            return;
+        }
+
         setIsSaving(true);
         try {
             await onSave({ amount, walletId, categoryId, tanggal });
         } catch (e: any) {
-            const errorMessage = e.message || 'Gagal menyimpan pelunasan.';
-            setError(errorMessage);
-            showToast(errorMessage, 'error');
+            const msg = e?.message || 'Gagal menyimpan pelunasan.';
+            setError(msg);
+            showToast(msg, 'error');
         } finally {
             setIsSaving(false);
         }
     };
-    
+
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="bg-gray-50 p-4 rounded-lg text-center">
                 <p className="text-sm text-muted-foreground">Sisa Tagihan</p>
                 <p className="text-2xl font-bold text-destructive">{formatCurrency(sisaTagihan)}</p>
-                {/* FIX: Changed property access from noInvoice to invoiceNumber. */}
                 <p className="text-xs text-muted-foreground mt-1">Invoice: {order.invoiceNumber}</p>
             </div>
+
             <div className="grid gap-1.5">
                 <Label htmlFor="amount">Jumlah Pelunasan</Label>
-                <Input 
-                    id="amount" 
-                    type="number" 
+                <Input
+                    id="amount"
+                    type="number"
+                    min={1}
+                    max={sisaTagihan}
+                    step="1"
                     value={amount}
                     onChange={(e) => setAmount(Number(e.target.value))}
-                    required 
+                    required
                     data-testid="settlement-amount"
                 />
+                {!isAmountValid && <span className="text-xs text-destructive">Maksimal {formatCurrency(sisaTagihan)}</span>}
             </div>
-             <div className="grid gap-1.5">
+
+            <div className="grid gap-1.5">
                 <Label htmlFor="tanggal">Tanggal Pelunasan</Label>
-                <Input 
-                    id="tanggal" 
-                    type="datetime-local" 
-                    value={tanggal}
-                    onChange={(e) => setTanggal(e.target.value)}
-                    required 
-                />
+                <Input id="tanggal" type="datetime-local" value={tanggal} onChange={(e) => setTanggal(e.target.value)} required />
             </div>
-             <div className="grid gap-1.5">
+
+            <div className="grid gap-1.5">
                 <div className="flex justify-between items-baseline">
                     <Label htmlFor="walletId">Masuk ke Wallet</Label>
-                    <span className="text-xs text-muted-foreground">Saldo Saat Ini: <strong>{formatCurrency(currentBalance)}</strong></span>
+                    <span className="text-xs text-muted-foreground">
+                        Saldo Saat Ini: <strong>{formatCurrency(currentBalance)}</strong>
+                    </span>
                 </div>
                 <Select id="walletId" value={walletId} onChange={(e) => setWalletId(e.target.value)} required>
                     <option value="all">Semua Wallet (Lihat Saldo)</option>
-                    {accessibleWallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                    {accessibleWallets.map((w) => (
+                        <option key={w.id} value={w.id}>
+                            {w.name}
+                        </option>
+                    ))}
                 </Select>
             </div>
+
             <div className="grid gap-1.5">
                 <Label htmlFor="categoryId">Kategori Penjualan</Label>
-                <Select id="categoryId" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required>
-                    {incomeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                <Select
+                    id="categoryId"
+                    value={categoryId}
+                    onChange={e => setCategoryId(e.target.value)}
+                    required
+                    aria-invalid={!isValidCategory}
+                >
+                    {/* placeholder agar user sadar harus pilih */}
+                    <option value="" disabled>Pilih kategori…</option>
+                    {incomeCategories.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
                 </Select>
+                {!isValidCategory && <span className="text-xs text-destructive">Pilih kategori income yang tersedia.</span>}
             </div>
+
             <div className="grid gap-1.5">
                 <Label>Deskripsi</Label>
-                {/* FIX: Changed property access from noInvoice to invoiceNumber. */}
                 <Input value={`Pelunasan untuk Invoice ${order.invoiceNumber}`} readOnly disabled />
             </div>
+
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+
             <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={onCancel}>Batal</Button>
-                <Button type="submit" disabled={isSaving || walletId === 'all'}>
+                <Button type="button" variant="outline" onClick={onCancel}>
+                    Batal
+                </Button>
+                <Button type="submit" disabled={isSaving || walletId === 'all' || !isValidCategory || !isAmountValid}>
                     {isSaving ? 'Menyimpan...' : 'Simpan Pelunasan'}
                 </Button>
             </div>
         </form>
     );
 };
+
 
 const PaymentStatusBadge: React.FC<{ status: PaymentStatus }> = ({ status }) => {
     const baseClasses = 'px-2 py-1 text-xs font-medium rounded-full inline-block';
@@ -167,7 +208,8 @@ const SettlementPage: React.FC = () => {
     const [wallets, setWallets] = useState<Wallet[]>([]);
     const [incomeCategories, setIncomeCategories] = useState<FinanceCategory[]>([]);
     const [cashFlowEntries, setCashFlowEntries] = useState<CashFlowEntry[]>([]);
-    
+    const [categoryId, setCategoryId] = useState(incomeCategories[0]?.id || '');
+
     const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
     const { showToast } = useToast();
     const { hasPermission } = useAuth();
@@ -198,8 +240,16 @@ const SettlementPage: React.FC = () => {
         loadInitialData();
     }, [loadInitialData]);
 
+    // ketika incomeCategories berubah, sinkronkan pilihan jika invalid
+    useEffect(() => {
+        if (!incomeCategories?.length) return;
+        if (!incomeCategories.some(c => c.id === categoryId)) {
+            setCategoryId(incomeCategories[0].id);
+        }
+    }, [incomeCategories]);
+
     const displayedOrders = useMemo(() => {
-        const settlementCandidates = allOrders.filter(order => 
+        const settlementCandidates = allOrders.filter(order =>
             order.paymentStatus !== 'Settled' && order.orderStatus !== 'Cancelled'
         );
 
@@ -214,25 +264,25 @@ const SettlementPage: React.FC = () => {
                 );
             })
             : settlementCandidates;
-        
+
         // FIX: Changed sorting to use the mandatory `createdAt` field for reliability.
         return filteredList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }, [allOrders, searchQuery]);
-    
+
     const handleSaveSettlement = async (settlementData: { amount: number; walletId: string; categoryId: string; tanggal: string }) => {
         if (!selectedOrder) return;
-        
+
         try {
             const { amount, walletId, categoryId, tanggal } = settlementData;
             const result = await recordSettlement(selectedOrder.id, amount, walletId, categoryId, tanggal);
-            if(result.success && result.updatedOrder) {
+            if (result.success && result.updatedOrder) {
                 showToast(`Pelunasan berhasil — Payment: ${result.updatedOrder.paymentStatus}`, 'success');
-                setSelectedOrder(null); 
+                setSelectedOrder(null);
                 await loadInitialData(); // Reload all data to reflect changes
             } else {
                 throw new Error(result.message);
             }
-        } catch(e: any) {
+        } catch (e: any) {
             console.error('Failed to save settlement:', e);
             throw e;
         }
@@ -249,7 +299,7 @@ const SettlementPage: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                     <div className="flex gap-2 mb-6">
-                        <Input 
+                        <Input
                             type="search"
                             placeholder="Cari No Invoice, ID Pesanan, atau Nama Pelanggan..."
                             value={searchQuery}
@@ -298,8 +348,8 @@ const SettlementPage: React.FC = () => {
                                             )}
                                         </div>
                                         {canSettle && (
-                                            <Button 
-                                                onClick={() => setSelectedOrder(order)} 
+                                            <Button
+                                                onClick={() => setSelectedOrder(order)}
                                                 disabled={sisaTagihan <= 0}
                                                 size="sm"
                                                 // FIX: Changed property access from noInvoice to invoiceNumber.
@@ -312,7 +362,7 @@ const SettlementPage: React.FC = () => {
                                 </div>
                             );
                         })}
-                         {!isLoading && displayedOrders.length === 0 && (
+                        {!isLoading && displayedOrders.length === 0 && (
                             <div className="text-center py-8">
                                 <p className="text-muted-foreground">Tidak ada sales order yang perlu dilunasi.</p>
                             </div>
@@ -320,11 +370,11 @@ const SettlementPage: React.FC = () => {
                     </div>
                 </CardContent>
             </Card>
-            
+
             {selectedOrder && (
                 // FIX: Changed property access from noInvoice to invoiceNumber.
                 <Modal title={`Pelunasan untuk ${selectedOrder.invoiceNumber}`} onClose={() => setSelectedOrder(null)}>
-                    <SettlementForm 
+                    <SettlementForm
                         order={selectedOrder}
                         wallets={wallets}
                         incomeCategories={incomeCategories}

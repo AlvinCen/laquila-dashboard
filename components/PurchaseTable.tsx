@@ -63,17 +63,36 @@ const FinanceCategoryTable: React.FC<FinanceCategoryTableProps> = ({ searchQuery
     loadCategories();
   }, []);
 
+  const normalizeType = (t: any): 'income' | 'expense' => {
+    const s = String(t ?? '').toLowerCase();
+    if (/(exp|pengel|keluar|out|debit)/.test(s)) return 'expense';
+    return 'income';
+  };
+
   const { incomeCategories, expenseCategories } = useMemo(() => {
-    const lowercasedQuery = searchQuery.toLowerCase();
-    const filtered = searchQuery
-      ? categories.filter(c => c.name.toLowerCase().includes(lowercasedQuery))
-      : categories;
+    // 1) normalisasi data mentah biar pasti ada 'income' | 'expense'
+    const normalized = categories.map(c => ({
+      ...c,
+      type: normalizeType((c as any).type),
+    }));
+
+    // 2) filter pencarian
+    const q = (searchQuery ?? '').trim().toLowerCase();
+    const filtered = q
+      ? normalized.filter(c => (c.name ?? '').toLowerCase().includes(q))
+      : normalized;
+
+    // 3) bagi jadi dua bucket; kalau ada yang nggak kebaca, tetap ditampilin (fallback)
+    const inc = filtered.filter(c => c.type === 'income');
+    const exp = filtered.filter(c => c.type === 'expense');
 
     return {
-      incomeCategories: filtered.filter(c => c.type === 'income'),
-      expenseCategories: filtered.filter(c => c.type === 'expense'),
+      incomeCategories: inc.length ? inc : filtered.filter(c => c.type !== 'expense'),
+      expenseCategories: exp.length ? exp : filtered.filter(c => c.type === 'expense'),
     };
   }, [categories, searchQuery]);
+
+
 
   const loadCategories = async () => {
     setIsLoading(true);

@@ -169,85 +169,89 @@ const OrderAnalyticPage = () => {
         month: dayjs().tz(TZ).format('YYYY-MM'),
         marketplace: 'all',
     }))
+
+    // di atas
+    const [kpi, setKpi] = useState({ total: 0, compareTotal: 0 })
     const { showToast } = useToast();
 
-    useEffect(() => {
-        fetchPlatforms().then(setPlatforms).catch(() => showToast('Gagal memuat daftar marketplace.', 'error'));
-    }, [showToast]);
-
     // useEffect(() => {
-    //     const loadAnalytics = async () => {
-    //         setIsLoading(true);
-    //         try {
-    //             const result = await fetchOrderAnalytics({ marketplace, granularity });
-    //             // Helper mock (taruh di atas file sekali saja)
-    //             const makeMockDaily = (dateStr: string, cmpStr?: string) => {
-    //                 const g = (x: number, mu: number, s: number) => Math.exp(-0.5 * Math.pow((x - mu) / s, 2));
-    //                 const mk = (seed: number) =>
-    //                     Array.from({ length: 24 }, (_, h) => ({
-    //                         t: String(h).padStart(2, '0'),
-    //                         v: Math.round(200_000 * g(h, 10 + (seed % 2), 1.1) + 900_000 * g(h, 19, 1.6)),
-    //                     }));
-    //                 const s1 = mk(dateStr.split('-').reduce((a, b) => a + +b, 0));
-    //                 const s2 = cmpStr ? mk(cmpStr.split('-').reduce((a, b) => a + +b, 0) + 7) : [];
-    //                 return { current: s1, compare: s2 };
-    //             };
+    //     fetchPlatforms().then(setPlatforms).catch(() => showToast('Gagal memuat daftar marketplace.', 'error'));
+    // }, [showToast]);
 
-    //             let json: any;
+    useEffect(() => {
+        const loadAnalytics = async () => {
+            setIsLoading(true);
+            try {
+                const result = await fetchOrderAnalytics({ marketplace, granularity });
+                // Helper mock (taruh di atas file sekali saja)
+                const makeMockDaily = (dateStr: string, cmpStr?: string) => {
+                    const g = (x: number, mu: number, s: number) => Math.exp(-0.5 * Math.pow((x - mu) / s, 2));
+                    const mk = (seed: number) =>
+                        Array.from({ length: 24 }, (_, h) => ({
+                            t: String(h).padStart(2, '0'),
+                            v: Math.round(200_000 * g(h, 10 + (seed % 2), 1.1) + 900_000 * g(h, 19, 1.6)),
+                        }));
+                    const s1 = mk(dateStr.split('-').reduce((a, b) => a + +b, 0));
+                    const s2 = cmpStr ? mk(cmpStr.split('-').reduce((a, b) => a + +b, 0) + 7) : [];
+                    return { current: s1, compare: s2 };
+                };
 
-    //             try {
-    //                 const qs = new URLSearchParams({
-    //                     granularity,                             // 'daily'
-    //                     marketplace: marketplace || 'all',
-    //                     ...(granularity === 'daily' ? { date } : {}),
-    //                     ...(compare ? { compare: 'true', compareDate } : { compare: 'false' }),
-    //                 });
+                let json: any;
 
-    //                 const res = await fetch(`${BASE}/analytics/orders?${qs.toString()}`, {
-    //                     credentials: 'include',
-    //                 });
-    //                 if (!res.ok) throw new Error(String(res.status));
-    //                 json = await res.json();
-    //             } catch {
-    //                 // ===== MOCK (frontend only): selalu tampilkan 2 seri harian =====
-    //                 const g = (x: number, mu: number, s: number) => Math.exp(-0.5 * Math.pow((x - mu) / s, 2));
-    //                 const mk = (seed: number) =>
-    //                     Array.from({ length: 24 }, (_, h) => ({
-    //                         t: String(h).padStart(2, '0'),
-    //                         v: Math.round(200_000 * g(h, 10 + (seed % 2), 1.1) + 900_000 * g(h, 19, 1.6)),
-    //                     }));
-    //                 const seed = (s: string) => s.split('-').reduce((a, b) => a + +b, 0);
+                try {
+                    const qs = new URLSearchParams({
+                        granularity,                             // 'daily'
+                        marketplace: marketplace || 'all',
+                        ...(granularity === 'daily' ? { date } : {}),
+                        ...(compare ? { compare: 'true', compareDate } : { compare: 'false' }),
+                    });
 
-    //                 const dateStr = typeof date === 'string' ? date : dayjs().format('YYYY-MM-DD');
-    //                 const cmpStr =
-    //                     compare && typeof compareDate === 'string'
-    //                         ? compareDate
-    //                         : compare
-    //                             ? dayjs(dateStr).subtract(1, 'day').format('YYYY-MM-DD')
-    //                             : undefined;
+                    const res = await fetch(`${BASE}/analytics/orders?${qs.toString()}`, {
+                        credentials: 'include',
+                    });
+                    if (!res.ok) throw new Error(String(res.status));
+                    json = await res.json();
+                } catch {
+                    // ===== MOCK (frontend only): selalu tampilkan 2 seri harian =====
+                    const g = (x: number, mu: number, s: number) => Math.exp(-0.5 * Math.pow((x - mu) / s, 2));
+                    const mk = (seed: number) =>
+                        Array.from({ length: 24 }, (_, h) => ({
+                            t: String(h).padStart(2, '0'),
+                            v: Math.round(200_000 * g(h, 10 + (seed % 2), 1.1) + 900_000 * g(h, 19, 1.6)),
+                        }));
+                    const seed = (s: string) => s.split('-').reduce((a, b) => a + +b, 0);
 
-    //                 const cur = mk(seed(dateStr));
-    //                 const cmp = cmpStr ? mk(seed(cmpStr) + 7) : [];
+                    const dateStr = typeof date === 'string' ? date : dayjs().format('YYYY-MM-DD');
+                    const cmpStr =
+                        compare && typeof compareDate === 'string'
+                            ? compareDate
+                            : compare
+                                ? dayjs(dateStr).subtract(1, 'day').format('YYYY-MM-DD')
+                                : undefined;
 
-    //                 json = {
-    //                     kpi: { totalToday: cur.reduce((s, d) => s + d.v, 0) },
-    //                     series: { current: cur, compare: cmp },
-    //                     meta: { compareLabel: cmpStr ? dayjs(cmpStr).format('DD-MM-YYYY') : undefined },
-    //                 };
-    //             }
+                    const cur = mk(seed(dateStr));
+                    const cmp = cmpStr ? mk(seed(cmpStr) + 7) : [];
 
-    //             setData(json);
+                    json = {
+                        kpi: { totalToday: cur.reduce((s, d) => s + d.v, 0) },
+                        series: { current: cur, compare: cmp },
+                        meta: { compareLabel: cmpStr ? dayjs(cmpStr).format('DD-MM-YYYY') : undefined },
+                    };
+                }
 
-    //             // setData(result);
-    //             setLastUpdated(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
-    //         } catch (error: any) {
-    //             showToast(error.message || 'Gagal memuat data analitik.', 'error');
-    //         } finally {
-    //             setIsLoading(false);
-    //         }
-    //     };
-    //     loadAnalytics();
-    // }, [granularity, marketplace, showToast]);
+                setData(json);
+
+                // setData(result);
+                setLastUpdated(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+            } catch (error: any) {
+                showToast(error.message || 'Gagal memuat data analitik.', 'error');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadAnalytics();
+    }, [granularity, marketplace, showToast]);
+
     useEffect(() => {
         let dead = false;
 
@@ -346,14 +350,10 @@ const OrderAnalyticPage = () => {
 
 
     const kpiData = useMemo(() => {
-        if (!data) return { total: 0, change: 0 };
-        const { total, compareTotal } = data.kpi;
-        if (compareTotal === 0) {
-            return { total, change: total > 0 ? Infinity : 0 };
-        }
-        const change = ((total - compareTotal) / compareTotal) * 100;
-        return { total, change };
-    }, [data]);
+        const { total, compareTotal } = kpi
+        if (compareTotal === 0) return { total, change: total > 0 ? Infinity : 0 }
+        return { total, change: ((total - compareTotal) / compareTotal) * 100 }
+    }, [kpi])
 
     const compareLabel = useMemo(() => {
         if (!wantCompare) return '';
@@ -467,6 +467,7 @@ const OrderAnalyticPage = () => {
                                     compareDate={compareDate}     // daily: 'YYYY-MM-DD', monthly: 'YYYY-MM'
                                     onChangeCompareDate={setCompareDate}
                                     marketplace={marketplace}
+                                    onKpi={(k) => setKpi(k)}                          // <— sinkronkan KPI dengan chart
                                 />
 
                             )}
@@ -480,16 +481,17 @@ const OrderAnalyticPage = () => {
                         <CardHeader>
                             <h3 className="text-lg font-medium">5 Produk Terlaris</h3>
                         </CardHeader>
+                        {/* Top Products Card */}
                         <CardContent>
                             {isLoading ? (
                                 <div className="space-y-4">
                                     {[...Array(5)].map((_, i) => <div key={i} className="h-10 w-full bg-gray-200 animate-pulse rounded-md"></div>)}
                                 </div>
-                            ) : !data || data.topProducts.length === 0 ? (
+                            ) : ((data?.topProducts?.length ?? 0) === 0 ? (
                                 <p className="text-muted-foreground text-sm text-center py-8">Tidak ada data produk.</p>
                             ) : (
                                 <ul className="space-y-4">
-                                    {data.topProducts.map((product, index) => (
+                                    {data!.topProducts!.map((product, index) => (
                                         <li key={index} className="flex items-center space-x-4 text-sm">
                                             <span className="flex-shrink-0 font-medium text-muted-foreground">{index + 1}</span>
                                             <div className="flex-grow min-w-0">
@@ -500,7 +502,7 @@ const OrderAnalyticPage = () => {
                                         </li>
                                     ))}
                                 </ul>
-                            )}
+                            ))}
                         </CardContent>
                     </Card>
                 </div>

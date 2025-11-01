@@ -5,7 +5,9 @@ import {
   SalesOrder, SalesOrderInput,
   CashFlowEntry, CashFlowEntryInput,
   User, UserInput,
-  Platform
+  Platform,
+  AnalyticsParams,
+  AnalyticsData
 } from '../types';
 
 // Safely access Vite environment variables with optional chaining.
@@ -165,11 +167,34 @@ export async function deleteWallet(id: string): Promise<void> {
   await api.delete(`/wallets/${id}`);
 }
 
+// services/api.ts (atau services/financeCategories.ts)
 // --- FINANCE CATEGORY APIS ---
 export async function fetchFinanceCategories(): Promise<FinanceCategory[]> {
-  const res = await api.get('/finance-categories');
-  return (Array.isArray(res) ? res : []).map(fromServerFinCat);
+  const { data } = await api.get('/finance-categories');
+
+  const rows: any[] = Array.isArray(data) ? data : [];
+
+  const normType = (raw: any): 'income' | 'expense' => {
+    const s = String(raw ?? '').toLowerCase().trim();
+    if (
+      ['expense', 'exp', 'pengeluaran', 'keluar', 'out', 'debit'].some(k => s.includes(k))
+    ) return 'expense';
+    // default ke income biar nggak kosong
+    return 'income';
+  };
+
+  return rows
+    .map((r: any) => {
+      const id =
+        r.id ?? r.categoryId ?? r.category_id ?? r.uuid ?? r._rid_ ?? r.rowid;
+      const name = r.name ?? r.nama ?? r.label ?? r.title ?? '';
+      const type = normType(r.type ?? r.jenis ?? r.kategori);
+      return id ? { id: String(id), name: String(name), type } : null;
+    })
+    .filter(Boolean) as FinanceCategory[];
 }
+
+
 
 export async function addFinanceCategory(input: any): Promise<FinanceCategory> {
   const res = await api.post('/finance-categories', toServerFinCat(input));
@@ -244,10 +269,30 @@ export const updateCashFlowEntry = (id: string, entryUpdate: CashFlowEntryInput)
 export const deleteCashFlowEntry = (id: string): Promise<{ success: boolean }> => api.delete(`/cashflow/${id}`);
 
 // --- ANALYTICS APIS ---
-export const fetchOrderAnalytics = (params: { marketplace: string; granularity: 'daily' | 'monthly' }) => {
-  const query = new URLSearchParams(params as any).toString();
-  return api.get(`/analytics/orders?${query}`);
-};
+export async function fetchOrderAnalytics(params: AnalyticsParams): Promise<AnalyticsData> {
+  const qs = new URLSearchParams({
+    granularity: params.granularity ?? 'daily',
+    marketplace: params.marketplace ?? 'all',
+    ...(params.date ? { date: params.date } : {}),
+    ...(params.compare ? { compare: 'true', ...(params.compareDate ? { compareDate: params.compareDate } : {}) } : { compare: 'false' }),
+  });
+
+  const { data } = await api.get(`/analytics/orders?${qs.toString()}`);
+
+  // normalisasi ke AnalyticsData
+  return {
+    kpi: {
+      total: Number(data?.kpi?.total ?? data?.kpi?.totalToday ?? 0),
+      compareTotal: Number(data?.kpi?.compareTotal ?? 0),
+    },
+    series: {
+      current: (data?.series?.current ?? []).map((d: any) => ({ t: String(d.t ?? d.hour ?? d.x), v: Number(d.v ?? d.value ?? d.y ?? 0) })),
+      compare: (data?.series?.compare ?? []).map((d: any) => ({ t: String(d.t ?? d.hour ?? d.x), v: Number(d.v ?? d.value ?? d.y ?? 0) })),
+    },
+    topProducts: data?.topProducts ?? [],
+    meta: data?.meta ?? {},
+  };
+}
 
 // --- USER & AUTH APIS ---
 export const login = (username: string, password: string, remember: boolean): Promise<{ ok: boolean, user: User }> => api.post('/auth/login', { username, password, remember });

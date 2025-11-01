@@ -1,4 +1,4 @@
-// OrderChart.tsx — tampilkan chart + overlay error walau fetch gagal/404
+// OrderChart.tsx — chart harian pakai jam (00–23) + bulanan pakai tanggal
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   ResponsiveContainer, ComposedChart, Area, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend
@@ -15,6 +15,7 @@ const BASE = (import.meta as any)?.env?.VITE_API_URL || 'http://localhost:4000/a
 
 const pad2 = (x: any) => String(x).padStart(2, '0')
 
+// ---- decoder util (bebasin bentuk API) ----
 function toPoints(src: any): Point[] {
   if (!src) return []
   if (!Array.isArray(src) && Array.isArray(src.keys) && Array.isArray(src.values)) {
@@ -52,54 +53,27 @@ function mergeByUnion(cur: Point[], cmp: Point[], fallbackKeys?: string[]) {
   return keys.map(t => ({ t, current: mc.get(t) ?? 0, compare: mp.get(t) ?? 0 }))
 }
 
-/* Legend + picker */
-function LegendWithPicker({
-  isMonthly, value, onChange
-}: { isMonthly: boolean; value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="w-full flex items-center justify-center gap-6 px-2 py-1">
-      <div className="flex items-center gap-2 text-slate-700">
-        <svg width="18" height="10" aria-hidden="true">
-          <line x1="0" y1="5" x2="18" y2="5" stroke={COLOR_TODAY} strokeWidth="2" />
-        </svg>
-        <span className="text-sm">{isMonthly ? 'Bulan Ini' : 'Hari Ini'}</span>
-      </div>
-      <div className="flex items-center gap-2" style={{ color: COLOR_COMPARE }}>
-        <svg width="18" height="10" aria-hidden="true">
-          <line x1="0" y1="5" x2="18" y2="5" stroke={COLOR_COMPARE} strokeWidth="2" strokeDasharray="6 4" />
-          <circle cx="9" cy="5" r="3" fill="#fff" stroke={COLOR_COMPARE} strokeWidth="2" />
-        </svg>
-        <input
-          type={isMonthly ? 'month' : 'date'}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="bg-transparent outline-none border-0 text-sm"
-          style={{ color: COLOR_COMPARE }}
-        />
-      </div>
-    </div>
-  )
-}
-
 export default function OrderChart({
   granularity,
   date,
   compareDate,
   onChangeCompareDate,
   marketplace = 'all',
+  onKpi                                              // <— tambah ini
 }: {
   granularity: Granularity
   date: string
   compareDate?: string
   onChangeCompareDate?: (v: string) => void
   marketplace?: string
+  onKpi?: (k: { total: number; compareTotal: number }) => void  // <— tambah ini
 }) {
   const isMonthly = granularity === 'monthly'
   const [series, setSeries] = useState<Series>({ current: [], compare: [] })
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
-  // fallback keys supaya chart/axis tetap terlihat saat data kosong
+  // Fallback bucket: Harian → jam 00..23, Bulanan → 01..N
   const fallbackKeys = useMemo(() => {
     if (isMonthly) {
       const month = dayjs(date).format('YYYY-MM')
@@ -108,6 +82,12 @@ export default function OrderChart({
     }
     return Array.from({ length: 24 }, (_, h) => pad2(h))
   }, [isMonthly, date])
+
+  // Ticks untuk jam tiap 2 jam (00, 02, …, 22)
+  const dailyTicks = useMemo(
+    () => (isMonthly ? undefined : Array.from({ length: 12 }, (_, i) => pad2(i * 2))),
+    [isMonthly]
+  )
 
   useEffect(() => {
     let dead = false
@@ -122,7 +102,7 @@ export default function OrderChart({
         if (isMonthly) {
           const month = dayjs(date).format('YYYY-MM')
           qs.set('month', month)
-          qs.set('date', `${month}-01`) // bantu backend yang pakai 'date'
+          qs.set('date', `${month}-01`) // kompat
           if (compareDate && compareDate.length === 7) {
             qs.set('compare', 'true')
             qs.set('compareDate', compareDate)
@@ -130,7 +110,7 @@ export default function OrderChart({
         } else {
           const day = dayjs(date).format('YYYY-MM-DD')
           qs.set('date', day)
-          qs.set('day', day) // bantu backend yang pakai 'day'
+          qs.set('day', day) // kompat
           if (compareDate && compareDate.length >= 10) {
             qs.set('compare', 'true')
             qs.set('compareDate', dayjs(compareDate).format('YYYY-MM-DD'))
@@ -144,6 +124,10 @@ export default function OrderChart({
         const dec = decodeSeries(json)
         if (!dead) {
           setSeries(dec)
+          const total = dec.current.reduce((s, d) => s + (d.v || 0), 0)
+          const compareTotal = dec.compare.reduce((s, d) => s + (d.v || 0), 0)
+          onKpi?.({ total, compareTotal })                         // <— kabarkan ke parent
+
           if (dec.current.length === 0 && dec.compare.length === 0) {
             setErr('Tidak ada data untuk periode ini.')
           }
@@ -152,7 +136,7 @@ export default function OrderChart({
         if (!dead) {
           setSeries({ current: [], compare: [] })
           setErr(`Gagal mengambil data${e?.message ? `: ${e.message}` : ''}`)
-          // eslint-disable-next-line no-console
+          onKpi?.({ total: 0, compareTotal: 0 })                  // <— reset KPI
           console.error('[OrderChart] fetch error', e)
         }
       } finally {
@@ -163,6 +147,7 @@ export default function OrderChart({
     return () => { dead = true }
   }, [granularity, isMonthly, date, compareDate, marketplace])
 
+  // Data final: Harian → 24 titik (jam), Bulanan → 01..N
   const chartData = useMemo(
     () => mergeByUnion(series.current, series.compare, fallbackKeys),
     [series, fallbackKeys]
@@ -176,7 +161,6 @@ export default function OrderChart({
 
   return (
     <div className="rounded-2xl border p-3 min-h-[280px] relative">
-      {/* overlay error bila ada */}
       {err && (
         <div className="absolute left-3 top-2 z-10 text-[12px] leading-tight text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 shadow-sm">
           {err}
@@ -186,7 +170,11 @@ export default function OrderChart({
       <ResponsiveContainer width="100%" height={320}>
         <ComposedChart data={chartData} margin={{ top: 24, right: 16, left: -10, bottom: 10 }}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="t" />
+          <XAxis
+            dataKey="t"
+            ticks={dailyTicks as any}
+            label={!isMonthly ? { value: 'Jam', position: 'insideBottomRight', offset: 0 } : undefined}
+          />
           <YAxis tickFormatter={(v) =>
             new Intl.NumberFormat('id-ID', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(v))
           } />
@@ -200,11 +188,27 @@ export default function OrderChart({
             verticalAlign="top"
             wrapperStyle={{ width: '100%', display: 'flex', justifyContent: 'center' }}
             content={() => (
-              <LegendWithPicker
-                isMonthly={isMonthly}
-                value={compareDate ?? ''}
-                onChange={(v) => onChangeCompareDate?.(v)}
-              />
+              <div className="w-full flex items-center justify-center gap-6 px-2 py-1">
+                <div className="flex items-center gap-2 text-slate-700">
+                  <svg width="18" height="10" aria-hidden="true">
+                    <line x1="0" y1="5" x2="18" y2="5" stroke={COLOR_TODAY} strokeWidth="2" />
+                  </svg>
+                  <span className="text-sm">{isMonthly ? 'Bulan Ini' : 'Hari Ini'}</span>
+                </div>
+                <div className="flex items-center gap-2" style={{ color: COLOR_COMPARE }}>
+                  <svg width="18" height="10" aria-hidden="true">
+                    <line x1="0" y1="5" x2="18" y2="5" stroke={COLOR_COMPARE} strokeWidth="2" strokeDasharray="6 4" />
+                    <circle cx="9" cy="5" r="3" fill="#fff" stroke={COLOR_COMPARE} strokeWidth="2" />
+                  </svg>
+                  <input
+                    type={isMonthly ? 'month' : 'date'}
+                    value={compareDate ?? ''}
+                    onChange={(e) => onChangeCompareDate?.(e.target.value)}
+                    className="bg-transparent outline-none border-0 text-sm"
+                    style={{ color: COLOR_COMPARE }}
+                  />
+                </div>
+              </div>
             )}
           />
 

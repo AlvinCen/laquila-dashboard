@@ -1,5 +1,65 @@
 // --- DATABASE ALIGNED TYPES ---
 
+/** Tingkat aggrerasi data analitik. */
+export type Granularity = 'daily' | 'monthly';
+
+/** Titik data generik untuk chart/seri waktu. */
+export interface TimePoint {
+  /** Label bucket waktu: '00'..'23' (daily) atau '1'..'31' (monthly) */
+  t: string;
+  /** Nilai pada bucket waktu tersebut (IDR, sudah dalam angka). */
+  v: number;
+}
+
+/** Seri data untuk current dan (opsional) pembanding. */
+export interface AnalyticsSeries {
+  current: TimePoint[];
+  compare: TimePoint[]; // kosongkan [] bila tidak membandingkan
+}
+
+/** KPI utama yang ditampilkan di kartu angka besar. */
+export interface AnalyticsKpi {
+  /** Total periode saat ini (hari ini / bulan ini). */
+  total: number;
+  /** Total periode pembanding (kemarin / bulan lalu). */
+  compareTotal: number;
+}
+
+/** Item “top products” untuk sidebar. */
+export interface TopProduct {
+  name: string;
+  qty: number;
+  amount: number; // total rupiah produk tsb pada periode
+}
+
+/** Informasi tambahan dari backend (opsional). */
+export interface AnalyticsMeta {
+  /** Label yang dipakai untuk legend/tooltip pembanding (mis. '29-10-2025'). */
+  compareLabel?: string;
+  /** Bebas untuk atribut lain di masa depan. */
+  [key: string]: unknown;
+}
+
+/** Bentuk final data analitik yang dikonsumsi UI. */
+export interface AnalyticsData {
+  kpi: AnalyticsKpi;
+  series: AnalyticsSeries;
+  topProducts: TopProduct[];
+  meta?: AnalyticsMeta;
+}
+
+/** Parameter request untuk endpoint analytics. */
+export interface AnalyticsParams {
+  marketplace?: string;           // default: 'all'
+  granularity?: Granularity;      // default: 'daily'
+  /** YYYY-MM-DD (wajib untuk granularity='daily') */
+  date?: string;
+  /** Aktifkan perbandingan (hanya relevan untuk 'daily'). */
+  compare?: boolean;
+  /** YYYY-MM-DD untuk tanggal pembanding jika compare=true. */
+  compareDate?: string;
+}
+
 // From 'products' table
 export interface Product {
   id: string;
