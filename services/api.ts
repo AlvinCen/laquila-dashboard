@@ -170,9 +170,9 @@ export async function deleteWallet(id: string): Promise<void> {
 // services/api.ts (atau services/financeCategories.ts)
 // --- FINANCE CATEGORY APIS ---
 export async function fetchFinanceCategories(): Promise<FinanceCategory[]> {
-  const { data } = await api.get('/finance-categories');
+  const res = await api.get('/finance-categories');
 
-  const rows: any[] = Array.isArray(data) ? data : [];
+  const rows: any[] = Array.isArray(res) ? res : [];
 
   const normType = (raw: any): 'income' | 'expense' => {
     const s = String(raw ?? '').toLowerCase().trim();

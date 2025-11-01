@@ -48,25 +48,26 @@ const PaymentStatusBadge: React.FC<{ status: PaymentStatus }> = ({ status }) => 
 const OrderStatusBadge: React.FC<{ status: OrderStatus }> = ({ status }) => {
     const baseClasses = 'px-2 py-1 text-xs font-medium rounded-full inline-block';
     const statusStyles: Record<OrderStatus, string> = {
-        'Confirmed': 'bg-indigo-100 text-indigo-800',
+        'Completed': 'bg-green-100 text-green-800',
+        'Payment': 'bg-indigo-100 text-indigo-800',
         'Cancelled': 'bg-red-100 text-red-800',
     };
-    const label = status === 'Confirmed' ? 'Payment' : status;
+    const label = status;
     return <span className={`${baseClasses} ${statusStyles[status]}`}>{label}</span>;
 }
 
 
-const SalesOrderTable: React.FC<SalesOrderTableProps> = ({ 
+const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
     orders, isLoading, error, onAdd, onEdit, onCancel, onPrint, printingOrderId,
     query, onQueryChange, statusFilter, onStatusChange,
     startDate, onStartDateChange, endDate, onEndDateChange,
     sortConfig, requestSort
 }) => {
-    
+
     const inputRef = useRef<HTMLInputElement>(null);
     const fpRef = useRef<any>(null);
     const { hasPermission } = useAuth();
-    
+
     const canCreate = hasPermission('sales-order', 'create');
     const canUpdate = hasPermission('sales-order', 'update');
     const canCancel = hasPermission('sales-order', 'cancel');
@@ -89,16 +90,16 @@ const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
                 onEndDateChange(e ? e.toISOString().slice(0, 10) : '');
             },
         });
-        
+
         // Hide original input to avoid showing two fields
-        if(inputRef.current) {
+        if (inputRef.current) {
             inputRef.current.style.position = 'absolute';
             inputRef.current.style.opacity = '0';
             inputRef.current.style.pointerEvents = 'none';
             inputRef.current.style.height = '0';
             inputRef.current.style.padding = '0';
         }
-        
+
         return () => {
             if (fpRef.current) {
                 fpRef.current.destroy();
@@ -129,7 +130,7 @@ const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
             </th>
         );
     };
-    
+
     return (
         <div>
             <div className="flex justify-end mb-4">
@@ -140,11 +141,11 @@ const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
                     </Button>
                 )}
             </div>
-            
+
             <div className="flex flex-wrap items-end gap-4 p-4 mb-4 bg-muted rounded-lg border">
-                 <div className="flex-grow min-w-[200px] grid gap-1.5">
+                <div className="flex-grow min-w-[200px] grid gap-1.5">
                     <Label htmlFor="search-query">Search</Label>
-                    <Input 
+                    <Input
                         id="search-query"
                         type="search"
                         placeholder="Cari nama, invoice..."
@@ -161,13 +162,14 @@ const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
                         aria-label="Filter by order status"
                     >
                         <option value="All">Semua Status</option>
-                        <option value="Confirmed">Payment</option>
+                        <option value="Payment">Payment</option>
+                        <option value="Completed">Completed</option>
                         <option value="Cancelled">Cancelled</option>
                     </Select>
                 </div>
                 <div className="flex-grow sm:flex-grow-0 min-w-[240px] grid gap-1.5 relative">
                     <Label htmlFor="date-range-picker">Periode Tgl Pesan</Label>
-                     <input
+                    <input
                         id="date-range-picker"
                         ref={inputRef}
                         placeholder="Pilih rentang tanggal"
@@ -178,7 +180,7 @@ const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
 
 
             {error && <p className="text-sm font-medium text-destructive mb-4">{error}</p>}
-            
+
             <div className="overflow-x-auto border rounded-lg">
                 <table className="w-full text-sm text-left min-w-[900px]">
                     <thead className="text-xs text-gray-900 font-medium uppercase bg-gray-50">
@@ -219,31 +221,31 @@ const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
                                         <OrderStatusBadge status={order.orderStatus} />
                                     </td>
                                     {(canUpdate || canCancel) && (
-                                    <td className="px-4 py-2 text-center">
-                                        <div className="flex justify-center space-x-1">
-                                            {canUpdate && (
-                                                <Button variant="ghost" size="sm" onClick={() => onEdit(order)} title="Edit Order">
-                                                    <EditIcon className="h-4 w-4" />
-                                                </Button>
-                                            )}
-                                            {canRead && (
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="sm" 
-                                                    onClick={() => onPrint(order)} 
-                                                    title="Print Kelengkapan (100x150mm)"
-                                                    disabled={printingOrderId === order.id}
-                                                >
-                                                    <PrinterIcon className="h-4 w-4" />
-                                                </Button>
-                                            )}
-                                            {canCancel && order.orderStatus !== 'Cancelled' && (
-                                                <Button variant="ghost" size="sm" onClick={() => onCancel(order.id)} title="Batalkan Order">
-                                                    <TrashIcon className="h-4 w-4 text-destructive" />
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </td>
+                                        <td className="px-4 py-2 text-center">
+                                            <div className="flex justify-center space-x-1">
+                                                {canUpdate && (
+                                                    <Button variant="ghost" size="sm" onClick={() => onEdit(order)} title="Edit Order">
+                                                        <EditIcon className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                                {canRead && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => onPrint(order)}
+                                                        title="Print Kelengkapan (100x150mm)"
+                                                        disabled={printingOrderId === order.id}
+                                                    >
+                                                        <PrinterIcon className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                                {canCancel && order.orderStatus !== 'Cancelled' && (
+                                                    <Button variant="ghost" size="sm" onClick={() => onCancel(order.id)} title="Batalkan Order">
+                                                        <TrashIcon className="h-4 w-4 text-destructive" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </td>
                                     )}
                                 </tr>
                             ))

@@ -45,7 +45,7 @@ const SalesOrderItemRow: React.FC<SalesOrderItemRowProps> = ({ item, products, o
     };
     
     const formattedSubtotal = useMemo(() => {
-        return new Intl.NumberFormat('id-ID').format(item.jumlah);
+        return new Intl.NumberFormat('id-ID').format(item.jumlah || item.qty * item.basePrice);
     }, [item.jumlah]);
     
     const warnaOptions = ["Hitam","Putih","Abu-abu","Merah","Biru","Hijau","Kuning","Cokelat","Cream","Silver","Gold"];

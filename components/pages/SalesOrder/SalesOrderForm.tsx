@@ -36,6 +36,7 @@ const SalesOrderForm: React.FC<SalesOrderFormProps> = ({ order, onSaveSuccess, o
         items: [],
         orderStatus: 'Confirmed',
     });
+    console.log(formData)
     const [products, setProducts] = useState<Product[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
